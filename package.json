@@ -1,0 +1,21 @@
+{
+  "name": "vectra-cargo-crm",
+  "version": "1.0.0",
+  "description": "Air-cargo sales CRM with PNL model (Node + Postgres)",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test/smoke.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
+    "pg": "^8.13.1",
+    "pg-mem": "^3.0.4"
+  }
+}
