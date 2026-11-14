@@ -124,6 +124,22 @@ function jar() {
       await A("POST", `/api/staff/${sp.id}/reject`);
       assert.equal((await S2("GET", "/api/me")).status, 401);
     });
+    await t("admin creates staff with generated password; reset works", async () => {
+      assert.equal((await S("POST", "/api/staff/create", { login: "x1", seller: "Bobur" })).status, 403);
+      const r = await A("POST", "/api/staff/create", { name: "Sirojiddin", login: "siroj.p", seller: "Sirojiddin.P" });
+      assert.equal(r.status, 200); assert.ok(r.body.password.length >= 8);
+      assert.equal((await A("POST", "/api/staff/create", { login: "siroj.p", seller: "Bobur" })).status, 409);
+      const U = jar();
+      const l = await U("POST", "/api/login", { login: "siroj.p", password: r.body.password });
+      assert.equal(l.body.role, "seller"); assert.equal(l.body.seller, "Sirojiddin.P");
+      assert.equal((await U("GET", "/api/clients")).status, 200);
+      const st = await A("GET", "/api/staff");
+      const s = st.body.staff.find(x => x.login === "siroj.p");
+      const rp = await A("POST", `/api/staff/${s.id}/reset-password`);
+      assert.notEqual(rp.body.password, r.body.password);
+      assert.equal((await U("GET", "/api/me")).status, 401);
+      assert.equal((await jar()("POST", "/api/login", { login: "siroj.p", password: rp.body.password })).status, 200);
+    });
     await t("logout clears session", async () => {
       await A("POST", "/api/logout");
       assert.equal((await A("GET", "/api/me")).status, 401);

@@ -281,6 +281,37 @@ async function main() {
       admins: rows.filter(r => r.role === "admin").map(pubUser)
     });
   }));
+  const genPass = () => {
+    const A = "abcdefghjkmnpqrstuvwxyz23456789";
+    let s = "";
+    for (let i = 0; i < 10; i++) s += A[crypto.randomInt(A.length)];
+    return s;
+  };
+  app.post("/api/staff/create", need("admin", async (req, res) => {
+    const name = str(req.body.name, 80).trim();
+    const login = str(req.body.login, 60).trim().toLowerCase();
+    const seller = str(req.body.seller, 80);
+    let pass = str(req.body.password, 200);
+    if (!SELL.includes(seller)) return res.status(400).json({ error: "Xodim kimligini tanlang." });
+    if (!/^[a-z0-9._@-]{3,60}$/.test(login)) return res.status(400).json({ error: "Login kamida 3 belgi: lotin harflari, raqam, . _ @ -" });
+    if (pass && pass.length < 6) return res.status(400).json({ error: "Parol kamida 6 belgidan iborat bo'lsin (yoki bo'sh qoldiring)." });
+    if (await one("SELECT id FROM users WHERE login=$1", [login])) return res.status(409).json({ error: "Bu login band." });
+    if (!pass) pass = genPass();
+    const id = rid(8);
+    await q("INSERT INTO users(id,login,name,pass,role,seller,created_at) VALUES($1,$2,$3,$4,'seller',$5,$6)",
+      [id, login, name || seller, await bcrypt.hash(pass, 10), seller, now()]);
+    pushAdmins({ type: "staff" });
+    res.json({ login, password: pass, seller });
+  }));
+  app.post("/api/staff/:id/reset-password", need("admin", async (req, res) => {
+    const u = await one("SELECT * FROM users WHERE id=$1", [req.params.id]);
+    if (!u || u.role === "admin") return res.status(404).json({ error: "Foydalanuvchi topilmadi." });
+    const pass = genPass();
+    await q("UPDATE users SET pass=$1 WHERE id=$2", [await bcrypt.hash(pass, 10), u.id]);
+    await q("DELETE FROM sessions WHERE user_id=$1", [u.id]);
+    kickUser(u.id);
+    res.json({ login: u.login, password: pass });
+  }));
   app.post("/api/staff/:id/approve", need("admin", async (req, res) => {
     const seller = str(req.body.seller, 80);
     if (!SELL.includes(seller)) return res.status(400).json({ error: "Xodim ismini tanlang." });

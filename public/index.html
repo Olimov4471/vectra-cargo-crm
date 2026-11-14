@@ -69,7 +69,7 @@ tr.fact td{color:var(--ac)}tr.key td{font-weight:700}
 <div class="note" id="tsk" style="margin-bottom:8px"></div></div>
 <div id="v_board"><div class="bar" id="tabs"></div><div class="board" id="kb"></div></div>
 <div id="v_list" style="display:none"><div class="card"><div class="bar"><span class="note" id="bn"></span><select id="bst"></select><button data-act="bulk">Tanlanganlarga qo’llash</button></div><div class="tw" id="lst"></div></div></div>
-<div id="v_staff" style="display:none"><div class="card"><h3>Tasdiq kutayotganlar</h3><div id="pend"></div></div><div class="card"><h3>Tasdiqlangan xodimlar</h3><div id="stf"></div></div><div class="card"><h3>Administratorlar</h3><div id="adms"></div></div></div>
+<div id="v_staff" style="display:none"><div class="card"><h3>Yangi xodim qo’shish</h3><div class="bar"><select id="xs" aria-label="Kim"></select><input id="xn" placeholder="Ism familiya"><input id="xl" placeholder="Login" autocapitalize="none" spellcheck="false" autocomplete="off"><input id="xp" placeholder="Parol (bo’sh = avtomatik)" autocomplete="new-password"><button class="p" data-act="xcreate">Yaratish</button></div><div class="note">Parolni bo’sh qoldirsangiz, tizim o’zi yaratadi. Login va parol faqat bir marta ko’rsatiladi: xodimga yuboring.</div><div id="xout"></div></div><div class="card"><h3>Tasdiq kutayotganlar</h3><div id="pend"></div></div><div class="card"><h3>Tasdiqlangan xodimlar</h3><div id="stf"></div></div><div class="card"><h3>Administratorlar</h3><div id="adms"></div></div></div>
 <div id="v_rep" style="display:none"><div class="kp" id="kp"></div>
 <div class="card"><h3>Voronka</h3><div id="fn"></div></div>
 <div class="card"><h3>Manba bo’yicha</h3><div class="tw" id="bs"></div></div>
@@ -150,8 +150,11 @@ function saleslist(L){const R=[];L.forEach(c=>sl(c).forEach(x=>R.push({c,x})));R
 // ---------- staff ----------
 function staffV(){
  $("pend").innerHTML=PEND.length?PEND.map(p=>`<div class="bar"><b>${esc(p.name||"(ism yo’q)")}</b><span class="note">login: ${esc(p.login)}</span><select data-sel="${esc(p.id)}"><option value="">Kim ekanini tanlang</option>${SELL.map(x=>`<option>${esc(x)}</option>`).join("")}</select><button class="p" data-act="appr" data-id="${esc(p.id)}">Tasdiqlash</button><button data-act="rej" data-id="${esc(p.id)}">Rad etish</button></div>`).join(""):'<div class="note">Kutayotgan so’rov yo’q.</div>';
- $("stf").innerHTML=STAFF.length?STAFF.map(p=>`<div class="bar"><b>${esc(p.seller)}</b><span class="note">${esc(p.name||"")} · login: ${esc(p.login)}</span><button data-act="revoke" data-id="${esc(p.id)}">Ruxsatni bekor qilish</button></div>`).join(""):'<div class="note">Hali xodim tasdiqlanmagan.</div>';
+ $("stf").innerHTML=STAFF.length?STAFF.map(p=>`<div class="bar"><b>${esc(p.seller)}</b><span class="note">${esc(p.name||"")} · login: ${esc(p.login)}</span><button data-act="resetpw" data-id="${esc(p.id)}">Parolni yangilash</button><button data-act="revoke" data-id="${esc(p.id)}">Ruxsatni bekor qilish</button></div>`).join(""):'<div class="note">Hali xodim tasdiqlanmagan.</div>';
+ const xs=$("xs");if(document.activeElement!==xs){const v=xs.value;opts(xs,"Kim? (tanlang)",SELL,v)}
  $("adms").innerHTML=ADMINS.map(p=>`<div class="bar"><b>${esc(p.name)}</b><span class="note">login: ${esc(p.login)}</span></div>`).join("")}
+function showCred(seller,login,pass){const url=location.origin,tx=`CRM: ${url}\nXodim: ${seller}\nLogin: ${login}\nParol: ${pass}`;const o=$("xout");o.dataset.tx=tx;
+ o.innerHTML=`<div class="card" style="margin:10px 0 0;border-color:var(--gr)"><b>${esc(seller)}</b> uchun kirish ma’lumoti (faqat hozir ko’rinadi):<pre style="margin:6px 0;white-space:pre-wrap;user-select:all">${esc(tx)}</pre><div class="bar" style="margin:0"><button class="p" data-act="copycred">Nusxa olish</button><button data-act="hidecred">Yopish</button></div></div>`}
 async function loadStaff(){if(!ADM)return;try{const r=await api("GET","/api/staff");PEND=r.pending;STAFF=r.staff;ADMINS=r.admins;if(view==="staff")staffV()}catch(e){msg(e.message)}}
 
 // ---------- modals ----------
@@ -316,6 +319,11 @@ document.addEventListener("click",async e=>{const t=e.target.closest("[data-act]
  if(D.act==="close"){sel=null;arm=false;render(true);return}
  if(D.act==="appr"){const v=document.querySelector(`[data-sel="${CSS.escape(D.id)}"]`).value;if(!v)return msg("Xodim ismini tanlang.");try{await api("POST",`/api/staff/${encodeURIComponent(D.id)}/approve`,{seller:v});msg("Tasdiqlandi.",1)}catch(er){msg(er.message)}loadStaff();return}
  if(D.act==="rej"){try{await api("POST",`/api/staff/${encodeURIComponent(D.id)}/reject`)}catch(er){msg(er.message)}loadStaff();return}
+ if(D.act==="xcreate"){const b={seller:$("xs").value,name:$("xn").value.trim(),login:$("xl").value.trim(),password:$("xp").value};if(!b.seller)return msg("Xodim kimligini tanlang.");if(!b.login)return msg("Login yozing.");
+  try{const r=await api("POST","/api/staff/create",b);showCred(r.seller,r.login,r.password);["xn","xl","xp"].forEach(id=>$(id).value="");$("xs").value=""}catch(er){msg(er.message)}loadStaff();return}
+ if(D.act==="resetpw"){if(!confirm("Yangi parol yaratilsinmi? Eski parol ishlamay qoladi."))return;try{const r=await api("POST",`/api/staff/${encodeURIComponent(D.id)}/reset-password`);const s=STAFF.find(x=>x.id===D.id);showCred(s?s.seller:"",r.login,r.password)}catch(er){msg(er.message)}return}
+ if(D.act==="copycred"){const tx=$("xout").dataset.tx;try{await navigator.clipboard.writeText(tx);msg("Nusxa olindi.",1)}catch(er){msg("Nusxa olib bo’lmadi, qo’lda belgilang.")}return}
+ if(D.act==="hidecred"){$("xout").innerHTML="";$("xout").dataset.tx="";return}
  if(D.act==="revoke"){try{await api("POST",`/api/staff/${encodeURIComponent(D.id)}/revoke`)}catch(er){msg(er.message)}loadStaff();return}
  if(D.act==="all"){const L=filt();t.checked?L.forEach(x=>B.add(x.id)):B.clear();list(L);return}
  if(D.act==="bulk"){const st=$("bst").value;if(!st||!B.size)return msg("Holatni tanlang va mijozlarni belgilang.");
