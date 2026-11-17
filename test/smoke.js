@@ -139,6 +139,10 @@ function jar() {
       assert.notEqual(rp.body.password, r.body.password);
       assert.equal((await U("GET", "/api/me")).status, 401);
       assert.equal((await jar()("POST", "/api/login", { login: "siroj.p", password: rp.body.password })).status, 200);
+      assert.equal((await A("POST", `/api/staff/${s.id}/reset-password`, { password: "123" })).status, 400);
+      const cp = await A("POST", `/api/staff/${s.id}/reset-password`, { password: "custom99" });
+      assert.equal(cp.body.password, "custom99");
+      assert.equal((await jar()("POST", "/api/login", { login: "siroj.p", password: "custom99" })).status, 200);
     });
     await t("logout clears session", async () => {
       await A("POST", "/api/logout");

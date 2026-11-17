@@ -306,7 +306,9 @@ async function main() {
   app.post("/api/staff/:id/reset-password", need("admin", async (req, res) => {
     const u = await one("SELECT * FROM users WHERE id=$1", [req.params.id]);
     if (!u || u.role === "admin") return res.status(404).json({ error: "Foydalanuvchi topilmadi." });
-    const pass = genPass();
+    let pass = str(req.body && req.body.password, 200);
+    if (pass && pass.length < 6) return res.status(400).json({ error: "Parol kamida 6 belgidan iborat bo'lsin (yoki bo'sh qoldiring)." });
+    if (!pass) pass = genPass();
     await q("UPDATE users SET pass=$1 WHERE id=$2", [await bcrypt.hash(pass, 10), u.id]);
     await q("DELETE FROM sessions WHERE user_id=$1", [u.id]);
     kickUser(u.id);
