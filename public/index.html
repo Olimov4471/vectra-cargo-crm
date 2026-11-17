@@ -169,7 +169,7 @@ function askSale(who){return new Promise(res=>{const d=$("sm");$("smt").textCont
   if(kg===null){$("se").textContent="Og’irlikni raqam bilan yozing, masalan 0.5 (\"kg\" so’zisiz).";return}
   done({d:dd,sum:sm,kg})}})}
 // Accepts "12", "12,5", "0.50 kg", "$450" and returns the bare number as text; null if not a number.
-function numIn(v){const m=String(v??"").replace(/\s+/g,"").replace(",",".").match(/^\$?(\d+(?:\.\d+)?)(?:kg|кг|\$)?$/i);return m?String(+m[1]):null}
+function numIn(v){const m=String(v??"").replace(/\s+/g,"").replace(",",".").match(/^\$?(\d+(?:\.\d+)?)(?:kg|кг|\$|m3|m³|м3|куб)?$/i);return m?String(+m[1]):null}
 function ask(title,prev){return new Promise(res=>{const d=$("md");$("mtt").textContent=title;$("mi").value=prev||"";$("mer").textContent="";d.style.display="flex";$("mi").focus();
  const done=v=>{d.style.display="none";$("mok").onclick=$("mc").onclick=null;res(v)};
  $("mc").onclick=()=>done(null);
@@ -375,6 +375,7 @@ document.addEventListener("change",async e=>{const t=e.target;if(!started)return
   lg(c,"Mijoz kodi: "+(c.code||"—")+" → "+(v||"—"));c.code=v}
  else if(t.dataset.f==="n"){const v=t.value.trim();if(!v){msg("Mijoz ismini yozing: ismsiz saqlab bo’lmaydi.");return render(true)}c.n=v}
  else if(t.dataset.f==="sell"){lg(c,"Mas’ul xodim: "+(c.sell||"—")+" → "+(t.value||"—"));c.sell=t.value}
+ else if(t.dataset.f==="vol"||t.dataset.f==="wt"){const raw=t.value.trim();if(!raw||raw==="-"){c[t.dataset.f]=""}else{const n=numIn(raw);if(n===null){msg((t.dataset.f==="vol"?"Hajmni":"Og’irlikni")+" raqam bilan yozing, masalan "+(t.dataset.f==="vol"?"0.5":"12.5")+". Noma’lum bo’lsa, bo’sh qoldiring.");return render(true)}c[t.dataset.f]=n}}
  else if(t.dataset.f)c[t.dataset.f]=t.value;
  else return;
  put(c);render(true)});
