@@ -22,11 +22,11 @@ const now = () => Date.now();
 const sha = s => crypto.createHash("sha256").update(s).digest("hex");
 const rid = (n = 12) => crypto.randomBytes(n).toString("hex");
 
-function genCode() {
-  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let s = "";
-  for (let i = 0; i < 5; i++) s += A[crypto.randomInt(A.length)];
-  return "M-" + s;
+const CODE_PREFIX = "BVA-";
+// Client code typed by staff. A bare prefix ("BVA-") or blank means "no code yet".
+function normCode(v) {
+  const s = (v === undefined || v === null ? "" : String(v)).trim().slice(0, 40);
+  return s.toUpperCase() === CODE_PREFIX ? "" : s;
 }
 function parseCookies(h) {
   const o = {};
@@ -136,7 +136,7 @@ async function main() {
   function toClient(row) {
     let d = {};
     try { d = JSON.parse(row.data); } catch (e) {}
-    return Object.assign(d, { id: row.id, code: row.code, sell: row.seller || "", _v: Number(row.version) });
+    return Object.assign(d, { id: row.id, code: row.code || "", sell: row.seller || "", _v: Number(row.version) });
   }
   function cleanData(body) {
     const d = {};
@@ -209,7 +209,7 @@ async function main() {
   }));
 
   app.get("/api/code-free", need("staff", async (req, res) => {
-    const code = str(req.query.code, 40).trim();
+    const code = normCode(req.query.code);
     const id = str(req.query.id, 64);
     if (!code) return res.json({ free: false });
     const r = await one("SELECT id FROM clients WHERE code=$1 AND id<>$2", [code, id || ""]);
@@ -237,22 +237,16 @@ async function main() {
         return res.status(409).json({ error: "Bu mijozni boshqa xodim o'zgartirdi. Ma'lumot yangilandi, qayta kiriting.", client: toClient(ex) });
       try { oldLog = JSON.parse(ex.data).log || []; } catch (e) {}
       seller = adm ? str(b.sell, 80) : ex.seller;
-      // Everyone may set the client code; empty keeps the existing one.
-      code = str(b.code, 40).trim() || ex.code;
     } else {
       seller = adm ? str(b.sell, 80) : u.seller;
-      code = str(b.code, 40).trim();
     }
+    // Staff type the client code themselves (prefix "BVA-"); it may stay empty.
+    code = normCode(b.code);
     if (seller && !SELL.includes(seller)) return res.status(400).json({ error: "Noma'lum mas'ul xodim." });
 
     if (code) {
       const dup = await one("SELECT id FROM clients WHERE code=$1 AND id<>$2", [code, id]);
       if (dup) return res.status(409).json({ error: "Bunday mijoz kodi band: " + code });
-    } else {
-      for (let i = 0; i < 20 && !code; i++) {
-        const c = genCode();
-        if (!(await one("SELECT id FROM clients WHERE code=$1", [c]))) code = c;
-      }
     }
 
     // History is append-only; new entries get the real author.
@@ -265,10 +259,10 @@ async function main() {
     const data = JSON.stringify(d);
     if (ex) {
       await q("UPDATE clients SET code=$1, seller=$2, data=$3, version=version+1, updated_at=$4 WHERE id=$5",
-        [code, seller || "", data, now(), id]);
+        [code || null, seller || "", data, now(), id]);
     } else {
       await q("INSERT INTO clients(id,code,seller,data,version,updated_at) VALUES($1,$2,$3,$4,1,$5)",
-        [id, code, seller || "", data, now()]);
+        [id, code || null, seller || "", data, now()]);
     }
     const row = await one("SELECT * FROM clients WHERE id=$1", [id]);
     pushClient(row);

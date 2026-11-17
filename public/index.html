@@ -85,7 +85,7 @@ tr.fact td{color:var(--ac)}tr.key td{font-weight:700}
 <div class="dr" id="dr"></div>
 <div class="ovl" id="md"><div class="card"><h3 id="mtt"></h3><textarea id="mi" rows="3" style="width:100%"></textarea><div class="note" id="mer" style="color:var(--rd)"></div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button id="mc">Bekor qilish</button><button class="p" id="mok">Saqlash</button></div></div></div>
 <div class="ovl" id="sm"><div class="card"><h3 id="smt">Sotuv ma’lumoti</h3><div class="fr"><label>Sotuv sanasi</label><input type="date" id="sd"></div><div class="fr"><label>Sotilgan summa ($)</label><input id="ss" inputmode="decimal"></div><div class="fr"><label>Yuk og’irligi (kg)</label><input id="sk" inputmode="decimal"></div><div class="note" id="se" style="color:var(--rd)"></div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button id="sc">Bekor qilish</button><button class="p" id="so">Saqlash</button></div></div></div>
-<div class="ovl" id="nc"><div class="card"><h3>Yangi mijoz</h3><div class="fr"><label>Ism *</label><input id="nn" autocomplete="off"></div><div class="fr"><label>Mijoz kodi (bo’sh qoldirsangiz, avtomatik beriladi)</label><input id="ncode" autocomplete="off" autocapitalize="characters" spellcheck="false"></div><div class="fr"><label>Telefon</label><input id="nt" type="tel"></div><div class="fr"><label>Manba</label><select id="nsrc"></select></div><div class="note" id="ne" style="color:var(--rd)"></div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button id="ncc">Bekor qilish</button><button class="p" id="nco">Yaratish</button></div></div></div>
+<div class="ovl" id="nc"><div class="card"><h3>Yangi mijoz</h3><div class="fr"><label>Ism *</label><input id="nn" autocomplete="off"></div><div class="fr"><label>Mijoz kodi (BVA- dan keyin davomini yozing, keyinroq ham to’ldirsa bo’ladi)</label><input id="ncode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="BVA-…"></div><div class="fr"><label>Telefon</label><input id="nt" type="tel"></div><div class="fr"><label>Manba</label><select id="nsrc"></select></div><div class="note" id="ne" style="color:var(--rd)"></div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button id="ncc">Bekor qilish</button><button class="p" id="nco">Yaratish</button></div></div></div>
 <div class="ovl" id="pw"><div class="card"><h3 id="pwt">Parolni yangilash</h3><div class="fr"><label>Yangi parol (kamida 6 belgi)</label><input id="pwi" autocomplete="new-password" autocapitalize="none" spellcheck="false"></div><div class="note">Bo’sh qoldirsangiz, tizim parolni o’zi yaratadi. Eski parol ishlamay qoladi.</div><div class="note" id="pwe" style="color:var(--rd)"></div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button id="pwc">Bekor qilish</button><button class="p" id="pwo">Saqlash</button></div></div></div>
 <div id="toast"></div>
 <script>
@@ -105,7 +105,8 @@ const nowL=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOSt
 const nt=c=>{const t=tk(c).filter(x=>!x.done&&x.d).sort((a,b)=>a.d<b.d?-1:1)[0];return t?t.d:(c.cb||"")};
 const due=c=>{const d=nt(c);return d&&d<nowL()&&!["Sotildi","Sotib olmadi"].includes(c.st)};
 const lg=(c,tx)=>{c.log=(c.log||[]).concat([{t:Date.now(),tx,by:MYSEL||"Admin"}])};
-const VIS=c=>ADM||!c.sell||c.sell===MYSEL,code=c=>c.code||"(kod beriladi)";
+const VIS=c=>ADM||!c.sell||c.sell===MYSEL,code=c=>c.code||"";
+const CODE_PREFIX="BVA-",normCode=v=>{const s=String(v??"").trim();return s.toUpperCase()===CODE_PREFIX?"":s};
 
 // ---------- toast ----------
 let tT=null;
@@ -171,10 +172,10 @@ function ask(title,prev){return new Promise(res=>{const d=$("md");$("mtt").textC
  const done=v=>{d.style.display="none";$("mok").onclick=$("mc").onclick=null;res(v)};
  $("mc").onclick=()=>done(null);
  $("mok").onclick=()=>{const v=$("mi").value.trim();if(v.length<3){$("mer").textContent="Sababini yozing (kamida 3 ta belgi).";return}done(v)}})}
-function askNew(){return new Promise(res=>{const d=$("nc");$("nn").value="";$("ncode").value="";$("nt").value="";$("ne").textContent="";opts($("nsrc"),"Manba (tanlang)",SRC,"");d.style.display="flex";$("nn").focus();
+function askNew(){return new Promise(res=>{const d=$("nc");$("nn").value="";$("ncode").value=CODE_PREFIX;$("nt").value="";$("ne").textContent="";opts($("nsrc"),"Manba (tanlang)",SRC,"");d.style.display="flex";$("nn").focus();
  const done=v=>{d.style.display="none";$("nco").onclick=$("ncc").onclick=null;res(v)};
  $("ncc").onclick=()=>done(null);
- $("nco").onclick=async()=>{const n=$("nn").value.trim();if(!n){$("ne").textContent="Mijoz ismini yozing: ismsiz saqlab bo’lmaydi.";return}const cd=$("ncode").value.trim();
+ $("nco").onclick=async()=>{const n=$("nn").value.trim();if(!n){$("ne").textContent="Mijoz ismini yozing: ismsiz saqlab bo’lmaydi.";return}const cd=normCode($("ncode").value);
   if(cd){try{const f=await api("GET","/api/code-free?code="+encodeURIComponent(cd));if(!f.free){$("ne").textContent="Bunday mijoz kodi band: "+cd;return}}catch(er){$("ne").textContent=er.message;return}}
   done({n,code:cd,tel:$("nt").value.trim(),src:$("nsrc").value})}})}
 function askPw(who){return new Promise(res=>{const d=$("pw");$("pwt").textContent="Parolni yangilash"+(who?": "+who:"");$("pwi").value="";$("pwe").textContent="";d.style.display="flex";$("pwi").focus();
@@ -213,7 +214,7 @@ async function setSt(x,st,why){if(x.st===st&&st!=="Sotildi"){render(true);return
  lg(x,"Holat: "+x.st+" → "+st);x.st=st;put(x);render(true);return true}
 
 // ---------- views ----------
-const card=c=>{const d=nt(c);return `<div class="kc" draggable="true" data-id="${esc(c.id)}"><div class="nm" data-open="${esc(c.id)}">${esc(c.n)||"(nomsiz)"}</div><div class="note">${esc(code(c))}${c.tel?" · "+esc(c.tel):""}</div><div class="note">${esc(c.src)}${c.sell?" · "+esc(c.sell):""}</div>${(c.vol||c.wt)?`<div class="note">${c.vol?esc(c.vol)+" m³ ":""}${c.wt?esc(c.wt)+" kg":""}</div>`:""}${d?`<div class="${due(c)?"no":"note"}">☎ ${esc(d.replace("T"," "))}</div>`:""}${c.st==="Sotib olmadi"&&c.why?`<div class="no">Sabab: ${esc(c.why)}</div>`:""}<select data-mv="${esc(c.id)}" aria-label="Holat">${ST.map(x=>`<option ${x===c.st?"selected":""}>${x}</option>`).join("")}</select></div>`};
+const card=c=>{const d=nt(c);return `<div class="kc" draggable="true" data-id="${esc(c.id)}"><div class="nm" data-open="${esc(c.id)}">${esc(c.n)||"(nomsiz)"}</div><div class="note">${[c.code?esc(c.code):'<span class="no">kod yo’q</span>',c.tel?esc(c.tel):""].filter(Boolean).join(" · ")}</div><div class="note">${esc(c.src)}${c.sell?" · "+esc(c.sell):""}</div>${(c.vol||c.wt)?`<div class="note">${c.vol?esc(c.vol)+" m³ ":""}${c.wt?esc(c.wt)+" kg":""}</div>`:""}${d?`<div class="${due(c)?"no":"note"}">☎ ${esc(d.replace("T"," "))}</div>`:""}${c.st==="Sotib olmadi"&&c.why?`<div class="no">Sabab: ${esc(c.why)}</div>`:""}<select data-mv="${esc(c.id)}" aria-label="Holat">${ST.map(x=>`<option ${x===c.st?"selected":""}>${x}</option>`).join("")}</select></div>`};
 function kanban(L){let h="";
  ST.forEach((s,i)=>{
   if(WORK.includes(s)){const A=L.filter(c=>pl(c)===bd&&c.st===s),kg=A.reduce((a,c)=>a+(parseFloat(c.wt)||0),0),m3=A.reduce((a,c)=>a+(parseFloat(c.vol)||0),0);
@@ -291,7 +292,7 @@ function drawer(){const c=cur(),el=$("dr");if(!c){el.style.display="none";return
  const f=(l,k,t,ex)=>`<div class="fr"><label>${l}</label><input data-f="${k}" type="${t||"text"}" value="${esc(c[k])}" ${ex||""}></div>`;
  const ts=sl(c),tot=ts.reduce((a,x)=>a+(+x.sum||0),0),tkg=ts.reduce((a,x)=>a+(+x.kg||0),0),last=ts.map(x=>x.d).filter(Boolean).sort().pop();
  const sf=(l,k,A,dis)=>{const BB=A.concat(c[k]&&!A.includes(c[k])?[c[k]]:[]);return `<div class="fr"><label>${l}</label><select data-f="${k}" ${dis?"disabled":""}><option value="">${dis?"—":"Tanlang"}</option>${BB.map(s=>`<option ${s===c[k]?"selected":""}>${esc(s)}</option>`).join("")}</select></div>`};
- let h=`<div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">Mijoz kartasi</h3><button data-act="close">✕ Yopish</button></div><div style="margin-top:10px">${f("Ism *","n")}<div class="fr"><label>Mijoz kodi</label><input data-f="code" value="${esc(c.code||"")}" autocapitalize="characters" spellcheck="false"></div><div class="g2">${f("Telefon","tel","tel")}${sf("Manba","src",SRC)}${sf("Mas’ul xodim","sell",SELL,!ADM)}${f("Lead sanasi","d","date")}${f("Yuk hajmi (m³)","vol","text",'inputmode="decimal"')}${f("Yuk og’irligi (kg)","wt","text",'inputmode="decimal"')}</div>
+ let h=`<div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">Mijoz kartasi</h3><button data-act="close">✕ Yopish</button></div><div style="margin-top:10px">${f("Ism *","n")}<div class="fr"><label>Mijoz kodi</label><input data-f="code" value="${esc(c.code||CODE_PREFIX)}" placeholder="${CODE_PREFIX}…" autocapitalize="characters" spellcheck="false"></div><div class="g2">${f("Telefon","tel","tel")}${sf("Manba","src",SRC)}${sf("Mas’ul xodim","sell",SELL,!ADM)}${f("Lead sanasi","d","date")}${f("Yuk hajmi (m³)","vol","text",'inputmode="decimal"')}${f("Yuk og’irligi (kg)","wt","text",'inputmode="decimal"')}</div>
  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button data-act="mkagr">Kelishildi</button><button class="p" data-act="mksold">Sotildi</button><button data-act="mkno">Sotib olmadi</button>${c.st==="Sotib olmadi"?'<button data-act="reopen">Qayta ishlashga qaytarish</button>':""}</div><div class="fr"><label>Doska</label><select data-f="pl">${PL.map(p=>`<option value="${p}" ${p===pl(c)?"selected":""}>${PN[p]}</option>`).join("")}</select></div><div class="note" style="margin-bottom:6px">Bosqich: ${esc(c.st)} · Qayta sotuvlar: ${c.rc||0}/${DOIM}</div> <label><input type="checkbox" data-f="q" ${isQ(c)?"checked":""} ${sold(c)?"disabled":""}> Sifatli lead${sold(c)?' <span class="note">(sotuvi bor mijoz doim sifatli)</span>':""}</label>
  <div class="fr" style="margin-top:6px"><label>Izoh</label><textarea data-f="note" rows="2">${esc(c.note)}</textarea></div>
  ${c.st==="Sotib olmadi"?`<div class="fr"><label>Sotib olmagan sababi</label><textarea data-f="why" rows="2">${esc(c.why)}</textarea></div>`:""}${!isQ(c)&&c.wq?`<div class="fr"><label>Sifatsizlik sababi</label><textarea data-f="wq" rows="2">${esc(c.wq)}</textarea></div>`:""}
@@ -366,8 +367,10 @@ document.addEventListener("change",async e=>{const t=e.target;if(!started)return
  else if(t.dataset.s!==undefined){let v=t.value.trim();if(t.dataset.k!=="d"){v=v.replace(",",".");if(v&&!(parseFloat(v)>=0)){msg("Raqam yozing.");return render(true)}}c.sales[+t.dataset.s][t.dataset.k]=v}
  else if(t.dataset.f==="pl"){lg(c,"Doska: "+PN[pl(c)]+" → "+PN[t.value]);c.pl=t.value;if(c.st!=="Yangi mijoz")lg(c,"Holat: "+c.st+" → Yangi mijoz");c.st="Yangi mijoz";c.rc=0}
  else if(t.dataset.f==="q"){if(!t.checked){if(sold(c)){msg("Sotuvi bor mijozni sifatsiz deb bo’lmaydi.");return render(true)}const r=await ask("Nima uchun sifatsiz lead? Sababini yozing:",c.wq);if(r===null)return render(true);c.wq=r;lg(c,"Sifatsiz lead. Sabab: "+r)}else{delete c.wq;lg(c,"Sifatli lead deb belgilandi")}c.q=t.checked}
- else if(t.dataset.f==="code"){const v=t.value.trim();if(!v||C.some(x=>x!==c&&x.code===v)){msg("Bunday kod band yoki bo’sh.");return render(true)}
-  try{const f=await api("GET","/api/code-free?code="+encodeURIComponent(v)+"&id="+encodeURIComponent(c.id));if(!f.free){msg("Bunday mijoz kodi band: "+v);return render(true)}}catch(er){msg(er.message);return render(true)}lg(c,"Mijoz kodi: "+(c.code||"")+" → "+v);c.code=v}
+ else if(t.dataset.f==="code"){const v=normCode(t.value);if(v===(c.code||""))return render(true);
+  if(v){if(C.some(x=>x!==c&&x.code===v)){msg("Bunday mijoz kodi band: "+v);return render(true)}
+   try{const f=await api("GET","/api/code-free?code="+encodeURIComponent(v)+"&id="+encodeURIComponent(c.id));if(!f.free){msg("Bunday mijoz kodi band: "+v);return render(true)}}catch(er){msg(er.message);return render(true)}}
+  lg(c,"Mijoz kodi: "+(c.code||"—")+" → "+(v||"—"));c.code=v}
  else if(t.dataset.f==="n"){const v=t.value.trim();if(!v){msg("Mijoz ismini yozing: ismsiz saqlab bo’lmaydi.");return render(true)}c.n=v}
  else if(t.dataset.f==="sell"){lg(c,"Mas’ul xodim: "+(c.sell||"—")+" → "+(t.value||"—"));c.sell=t.value}
  else if(t.dataset.f)c[t.dataset.f]=t.value;

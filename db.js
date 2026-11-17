@@ -16,7 +16,7 @@ const SCHEMA = [
    )`,
   `CREATE TABLE IF NOT EXISTS clients (
      id TEXT PRIMARY KEY,
-     code TEXT UNIQUE NOT NULL,
+     code TEXT UNIQUE,
      seller TEXT NOT NULL DEFAULT '',
      data TEXT NOT NULL,
      version INTEGER NOT NULL DEFAULT 1,
@@ -47,6 +47,8 @@ async function connect() {
     memory = true;
   }
   for (const s of SCHEMA) await pool.query(s);
+  // Migration: client code became optional (staff fill it in themselves).
+  if (!memory) await pool.query("ALTER TABLE clients ALTER COLUMN code DROP NOT NULL");
   return { pool, memory };
 }
 

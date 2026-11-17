@@ -61,11 +61,15 @@ function jar() {
       assert.equal(r.status, 400);
     });
     let c1;
-    await t("seller creates client -> auto-assigned + code generated", async () => {
+    await t("seller creates client -> auto-assigned, code empty until typed", async () => {
       const r = await S("PUT", "/api/clients/ctest0001", { n: "Ali", sell: "Muhammad Ali", log: [{ t: 1, tx: "Mijoz yaratildi", by: "Admin" }] });
       assert.equal(r.status, 200); c1 = r.body;
       assert.equal(c1.sell, "Bobur");
-      assert.match(c1.code, /^M-[A-Z0-9]{5}$/);
+      assert.equal(c1.code, "");
+      // bare prefix = no code; several code-less clients may coexist
+      const e2 = await S("PUT", "/api/clients/ctest0e02", { n: "No code", code: "BVA-", log: [] });
+      assert.equal(e2.status, 200); assert.equal(e2.body.code, "");
+      assert.equal((await S("GET", "/api/code-free?code=BVA-")).body.free, false);
       assert.equal(c1.log[0].by, "Bobur");
     });
     await t("seller can set code but not seller; cannot delete", async () => {
