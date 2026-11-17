@@ -163,11 +163,13 @@ async function loadStaff(){if(!ADM)return;try{const r=await api("GET","/api/staf
 function askSale(who){return new Promise(res=>{const d=$("sm");$("smt").textContent="Sotuv ma’lumoti"+(who?": "+who:"");$("sd").value=nowL().slice(0,10);$("ss").value="";$("sk").value="";$("se").textContent="";d.style.display="flex";$("ss").focus();
  const done=v=>{d.style.display="none";$("so").onclick=$("sc").onclick=null;res(v)};
  $("sc").onclick=()=>done(null);
- $("so").onclick=()=>{const dd=$("sd").value,sm=parseFloat(String($("ss").value).replace(",",".")),kg=String($("sk").value).trim().replace(",",".");
+ $("so").onclick=()=>{const dd=$("sd").value,sraw=$("ss").value,kraw=String($("sk").value).trim(),sm=numIn(sraw),kg=kraw?numIn(kraw):"";
   if(!dd){$("se").textContent="Sotuv sanasini tanlang.";return}
-  if(!(sm>0)){$("se").textContent="Sotilgan summani ($) yozing (0 dan katta).";return}
-  if(kg&&!(parseFloat(kg)>=0)){$("se").textContent="Og’irlikni raqam bilan yozing.";return}
-  done({d:dd,sum:String(sm),kg})}})}
+  if(sm===null||!(+sm>0)){$("se").textContent="Sotilgan summani ($) raqam bilan yozing (0 dan katta), masalan 450.";return}
+  if(kg===null){$("se").textContent="Og’irlikni raqam bilan yozing, masalan 0.5 (\"kg\" so’zisiz).";return}
+  done({d:dd,sum:sm,kg})}})}
+// Accepts "12", "12,5", "0.50 kg", "$450" and returns the bare number as text; null if not a number.
+function numIn(v){const m=String(v??"").replace(/\s+/g,"").replace(",",".").match(/^\$?(\d+(?:\.\d+)?)(?:kg|кг|\$)?$/i);return m?String(+m[1]):null}
 function ask(title,prev){return new Promise(res=>{const d=$("md");$("mtt").textContent=title;$("mi").value=prev||"";$("mer").textContent="";d.style.display="flex";$("mi").focus();
  const done=v=>{d.style.display="none";$("mok").onclick=$("mc").onclick=null;res(v)};
  $("mc").onclick=()=>done(null);
@@ -364,7 +366,7 @@ document.addEventListener("change",async e=>{const t=e.target;if(!started)return
  if(t.dataset.chk){t.checked?B.add(t.dataset.chk):B.delete(t.dataset.chk);$("bn").textContent="Tanlangan: "+B.size;return}
  if(!c||!t.closest("#dr"))return;
  if(t.dataset.t!==undefined){const x=c.tasks[+t.dataset.t];x.done=t.checked;lg(c,(t.checked?"Vazifa bajarildi: ":"Vazifa qayta ochildi: ")+x.tx)}
- else if(t.dataset.s!==undefined){let v=t.value.trim();if(t.dataset.k!=="d"){v=v.replace(",",".");if(v&&!(parseFloat(v)>=0)){msg("Raqam yozing.");return render(true)}}c.sales[+t.dataset.s][t.dataset.k]=v}
+ else if(t.dataset.s!==undefined){let v=t.value.trim();if(t.dataset.k!=="d"){if(v){const n=numIn(v);if(n===null){msg("Raqam yozing, masalan 0.5 yoki 450.");return render(true)}v=n}}c.sales[+t.dataset.s][t.dataset.k]=v}
  else if(t.dataset.f==="pl"){lg(c,"Doska: "+PN[pl(c)]+" → "+PN[t.value]);c.pl=t.value;if(c.st!=="Yangi mijoz")lg(c,"Holat: "+c.st+" → Yangi mijoz");c.st="Yangi mijoz";c.rc=0}
  else if(t.dataset.f==="q"){if(!t.checked){if(sold(c)){msg("Sotuvi bor mijozni sifatsiz deb bo’lmaydi.");return render(true)}const r=await ask("Nima uchun sifatsiz lead? Sababini yozing:",c.wq);if(r===null)return render(true);c.wq=r;lg(c,"Sifatsiz lead. Sabab: "+r)}else{delete c.wq;lg(c,"Sifatli lead deb belgilandi")}c.q=t.checked}
  else if(t.dataset.f==="code"){const v=normCode(t.value);if(v===(c.code||""))return render(true);
@@ -413,9 +415,14 @@ async function start(){if(started)return;
  started=true;render();
  if(ADM){loadStaff();loadPnl()}
  stream()}
-function stream(){let first=true,errT=null;ES=new EventSource("/api/stream");
+// A new version was deployed: reload as soon as the user is not in the middle of typing.
+let BUILD=null,nvT=null;
+function busy(){return ["md","sm","nc","pw"].some(id=>$(id).style.display==="flex")||Object.values(PP).some(n=>n>0)||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
+function newVersion(){if(nvT)return;const tryReload=()=>{if(!busy())location.reload();else{msg("CRM yangilandi. Ishni saqlab bo’lgach, sahifa o’zi yangilanadi.",1);nvT=setTimeout(tryReload,5000)}};nvT=setTimeout(tryReload,300)}
+function stream(){let first=true,errT=null;ES=new EventSource("/api/stream?v=2");
  ES.onopen=async()=>{if(!first){try{await loadClients();render()}catch(e){}if(ADM){loadStaff();loadPnl()}}first=false};
  ES.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(er){return}
+  if(m.type==="hello"){if(!BUILD)BUILD=m.build;else if(m.build!==BUILD)newVersion();return}
   if(m.type==="upsert"){if(PP[m.client.id])return;replace(m.client);render()}
   else if(m.type==="remove"){C=C.filter(x=>x.id!==m.id);B.delete(m.id);if(sel===m.id)sel=null;render(true)}
   else if(m.type==="staff")loadStaff();

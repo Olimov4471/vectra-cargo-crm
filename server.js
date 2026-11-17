@@ -16,6 +16,8 @@ const PNL_DEFAULTS = {
   invShare: 0.7, reinv: 0.7, invMonths: 6, invAfter: 0, start: ""
 };
 
+// Identifies the running deployment; open pages reload when it changes.
+const BUILD = process.env.RAILWAY_DEPLOYMENT_ID || process.env.RAILWAY_GIT_COMMIT_SHA || String(Date.now());
 const COOKIE = "sid";
 const SESSION_DAYS = 365;
 const now = () => Date.now();
@@ -373,6 +375,9 @@ async function main() {
     res.set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no" });
     res.flushHeaders();
     res.write("retry: 3000\n\n");
+    res.write("data: " + JSON.stringify({ type: "hello", build: BUILD }) + "\n\n");
+    // Pages from before the auto-update feature connect without ?v=; their "me" handler reloads them once.
+    if (!req.query.v) res.write("data: " + JSON.stringify({ type: "me" }) + "\n\n");
     const c = { res, user: req.user };
     conns.add(c);
     req.on("close", () => conns.delete(c));
