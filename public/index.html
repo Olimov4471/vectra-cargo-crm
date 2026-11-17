@@ -86,6 +86,7 @@ tr.fact td{color:var(--ac)}tr.key td{font-weight:700}
 <div class="ovl" id="md"><div class="card"><h3 id="mtt"></h3><textarea id="mi" rows="3" style="width:100%"></textarea><div class="note" id="mer" style="color:var(--rd)"></div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button id="mc">Bekor qilish</button><button class="p" id="mok">Saqlash</button></div></div></div>
 <div class="ovl" id="sm"><div class="card"><h3 id="smt">Sotuv ma’lumoti</h3><div class="fr"><label>Sotuv sanasi</label><input type="date" id="sd"></div><div class="fr"><label>Sotilgan summa ($)</label><input id="ss" inputmode="decimal"></div><div class="fr"><label>Yuk og’irligi (kg)</label><input id="sk" inputmode="decimal"></div><div class="note" id="se" style="color:var(--rd)"></div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button id="sc">Bekor qilish</button><button class="p" id="so">Saqlash</button></div></div></div>
 <div class="ovl" id="nc"><div class="card"><h3>Yangi mijoz</h3><div class="fr"><label>Ism *</label><input id="nn" autocomplete="off"></div><div class="fr"><label>Telefon</label><input id="nt" type="tel"></div><div class="fr"><label>Manba</label><select id="nsrc"></select></div><div class="note" id="ne" style="color:var(--rd)"></div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button id="ncc">Bekor qilish</button><button class="p" id="nco">Yaratish</button></div></div></div>
+<div class="ovl" id="pw"><div class="card"><h3 id="pwt">Parolni yangilash</h3><div class="fr"><label>Yangi parol (kamida 6 belgi)</label><input id="pwi" autocomplete="new-password" autocapitalize="none" spellcheck="false"></div><div class="note">Bo’sh qoldirsangiz, tizim parolni o’zi yaratadi. Eski parol ishlamay qoladi.</div><div class="note" id="pwe" style="color:var(--rd)"></div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button id="pwc">Bekor qilish</button><button class="p" id="pwo">Saqlash</button></div></div></div>
 <div id="toast"></div>
 <script>
 "use strict";
@@ -174,7 +175,12 @@ function askNew(){return new Promise(res=>{const d=$("nc");$("nn").value="";$("n
  const done=v=>{d.style.display="none";$("nco").onclick=$("ncc").onclick=null;res(v)};
  $("ncc").onclick=()=>done(null);
  $("nco").onclick=()=>{const n=$("nn").value.trim();if(!n){$("ne").textContent="Mijoz ismini yozing: ismsiz saqlab bo’lmaydi.";return}done({n,tel:$("nt").value.trim(),src:$("nsrc").value})}})}
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){["md","sm","nc"].forEach(id=>{if($(id).style.display==="flex"){const b={md:"mc",sm:"sc",nc:"ncc"}[id];$(b).click()}})}});
+function askPw(who){return new Promise(res=>{const d=$("pw");$("pwt").textContent="Parolni yangilash"+(who?": "+who:"");$("pwi").value="";$("pwe").textContent="";d.style.display="flex";$("pwi").focus();
+ const done=v=>{d.style.display="none";$("pwo").onclick=$("pwc").onclick=$("pwi").onkeydown=null;res(v)};
+ $("pwc").onclick=()=>done(null);
+ $("pwo").onclick=()=>{const v=$("pwi").value;if(v&&v.length<6){$("pwe").textContent="Parol kamida 6 belgidan iborat bo’lsin.";return}done(v)};
+ $("pwi").onkeydown=e=>{if(e.key==="Enter")$("pwo").click()}})}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){["md","sm","nc","pw"].forEach(id=>{if($(id).style.display==="flex"){const b={md:"mc",sm:"sc",nc:"ncc",pw:"pwc"}[id];$(b).click()}})}});
 function opts(el,first,vals,cur){el.innerHTML=`<option value="">${esc(first)}</option>`+vals.map(v=>`<option ${v===cur?"selected":""}>${esc(v)}</option>`).join("")}
 
 // ---------- saving (queued per client, optimistic concurrency) ----------
@@ -321,7 +327,7 @@ document.addEventListener("click",async e=>{const t=e.target.closest("[data-act]
  if(D.act==="rej"){try{await api("POST",`/api/staff/${encodeURIComponent(D.id)}/reject`)}catch(er){msg(er.message)}loadStaff();return}
  if(D.act==="xcreate"){const b={seller:$("xs").value,name:$("xn").value.trim(),login:$("xl").value.trim(),password:$("xp").value};if(!b.seller)return msg("Xodim kimligini tanlang.");if(!b.login)return msg("Login yozing.");
   try{const r=await api("POST","/api/staff/create",b);showCred(r.seller,r.login,r.password);["xn","xl","xp"].forEach(id=>$(id).value="");$("xs").value=""}catch(er){msg(er.message)}loadStaff();return}
- if(D.act==="resetpw"){const np=prompt("Yangi parolni yozing (kamida 6 belgi).\nBo’sh qoldirsangiz, tizim o’zi yaratadi. Eski parol ishlamay qoladi.","");if(np===null)return;if(np&&np.length<6)return msg("Parol kamida 6 belgidan iborat bo’lsin.");try{const r=await api("POST",`/api/staff/${encodeURIComponent(D.id)}/reset-password`,{password:np});const s=STAFF.find(x=>x.id===D.id);showCred(s?s.seller:"",r.login,r.password)}catch(er){msg(er.message)}return}
+ if(D.act==="resetpw"){const s0=STAFF.find(x=>x.id===D.id);const np=await askPw(s0?s0.seller+" ("+s0.login+")":"");if(np===null)return;try{const r=await api("POST",`/api/staff/${encodeURIComponent(D.id)}/reset-password`,{password:np});const s=STAFF.find(x=>x.id===D.id);showCred(s?s.seller:"",r.login,r.password)}catch(er){msg(er.message)}return}
  if(D.act==="copycred"){const tx=$("xout").dataset.tx;try{await navigator.clipboard.writeText(tx);msg("Nusxa olindi.",1)}catch(er){msg("Nusxa olib bo’lmadi, qo’lda belgilang.")}return}
  if(D.act==="hidecred"){$("xout").innerHTML="";$("xout").dataset.tx="";return}
  if(D.act==="revoke"){try{await api("POST",`/api/staff/${encodeURIComponent(D.id)}/revoke`)}catch(er){msg(er.message)}loadStaff();return}
