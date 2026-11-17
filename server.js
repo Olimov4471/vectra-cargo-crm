@@ -208,6 +208,14 @@ async function main() {
     res.json(rows.filter(r => vis(req.user, r)).map(toClient));
   }));
 
+  app.get("/api/code-free", need("staff", async (req, res) => {
+    const code = str(req.query.code, 40).trim();
+    const id = str(req.query.id, 64);
+    if (!code) return res.json({ free: false });
+    const r = await one("SELECT id FROM clients WHERE code=$1 AND id<>$2", [code, id || ""]);
+    res.json({ free: !r });
+  }));
+
   app.get("/api/clients/:id", need("staff", async (req, res) => {
     const r = await one("SELECT * FROM clients WHERE id=$1", [req.params.id]);
     if (!r || !vis(req.user, r)) return res.status(404).json({ error: "Mijoz topilmadi." });
@@ -229,10 +237,11 @@ async function main() {
         return res.status(409).json({ error: "Bu mijozni boshqa xodim o'zgartirdi. Ma'lumot yangilandi, qayta kiriting.", client: toClient(ex) });
       try { oldLog = JSON.parse(ex.data).log || []; } catch (e) {}
       seller = adm ? str(b.sell, 80) : ex.seller;
-      code = adm ? str(b.code, 40).trim() : ex.code;
+      // Everyone may set the client code; empty keeps the existing one.
+      code = str(b.code, 40).trim() || ex.code;
     } else {
       seller = adm ? str(b.sell, 80) : u.seller;
-      code = adm ? str(b.code, 40).trim() : "";
+      code = str(b.code, 40).trim();
     }
     if (seller && !SELL.includes(seller)) return res.status(400).json({ error: "Noma'lum mas'ul xodim." });
 

@@ -62,16 +62,21 @@ function jar() {
     });
     let c1;
     await t("seller creates client -> auto-assigned + code generated", async () => {
-      const r = await S("PUT", "/api/clients/ctest0001", { n: "Ali", sell: "Muhammad Ali", code: "HACK", log: [{ t: 1, tx: "Mijoz yaratildi", by: "Admin" }] });
+      const r = await S("PUT", "/api/clients/ctest0001", { n: "Ali", sell: "Muhammad Ali", log: [{ t: 1, tx: "Mijoz yaratildi", by: "Admin" }] });
       assert.equal(r.status, 200); c1 = r.body;
       assert.equal(c1.sell, "Bobur");
       assert.match(c1.code, /^M-[A-Z0-9]{5}$/);
       assert.equal(c1.log[0].by, "Bobur");
     });
-    await t("seller cannot change seller/code, cannot delete", async () => {
+    await t("seller can set code but not seller; cannot delete", async () => {
       const r = await S("PUT", "/api/clients/ctest0001", Object.assign({}, c1, { sell: "", code: "X-1" }));
-      assert.equal(r.status, 200); assert.equal(r.body.sell, "Bobur"); assert.equal(r.body.code, c1.code);
+      assert.equal(r.status, 200); assert.equal(r.body.sell, "Bobur"); assert.equal(r.body.code, "X-1");
       c1 = r.body;
+      assert.equal((await S("GET", "/api/code-free?code=X-1")).body.free, false);
+      assert.equal((await S("GET", "/api/code-free?code=X-1&id=ctest0001")).body.free, true);
+      assert.equal((await S("GET", "/api/code-free?code=FREE-9")).body.free, true);
+      const nw = await S("PUT", "/api/clients/ctest0009", { n: "Own code", code: "B-777", log: [] });
+      assert.equal(nw.body.code, "B-777");
       assert.equal((await S("DELETE", "/api/clients/ctest0001")).status, 403);
     });
     await t("stale version -> 409", async () => {
